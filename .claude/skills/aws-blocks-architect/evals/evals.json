@@ -1,0 +1,48 @@
+{
+  "skill_name": "aws-blocks-architect",
+  "evals": [
+    {
+      "id": 0,
+      "name": "todo-app-backend",
+      "prompt": "AWS Blocksを使ってTodoアプリのバックエンドを作りたいです。ユーザーごとにログインして、自分のTodoの作成・一覧表示・完了済みへの切り替え・削除ができるようにしてください。Next.jsのフロントエンドから型安全に呼び出せる形にしてください。",
+      "expected_output": "AuthBasic(またはAuthCognito)とDistributedTableを使ったaws-blocks/index.tsのバックエンドコード。ApiNamespaceでCRUD操作を公開し、各ハンドラで認証チェックを行う。Next.jsからapiをimportして呼び出すフロントエンドコード例、npm run dev/typecheckでの確認手順を含む。",
+      "files": [],
+      "expectations": [
+        "backend.ts imports and instantiates a data-storage Block (DistributedTable or KVStore) from @aws-blocks/blocks for storing todos",
+        "backend.ts imports and instantiates an Auth Block (AuthBasic, AuthCognito, or AuthOIDC) from @aws-blocks/blocks",
+        "backend.ts defines an ApiNamespace with handlers for create, list, toggle/complete, and delete operations on todos",
+        "Every handler that reads or writes a specific user's todos resolves the user via the auth block (e.g. auth.getCurrentUser(context)) rather than trusting a client-supplied userId parameter",
+        "frontend.tsx imports `api` directly from the backend package and calls it without a manual fetch/axios call or a separate code-generation step",
+        "README.md mentions `npm run dev` (or `npm run typecheck`) as the way to run/verify the app locally without an AWS account"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "support-chatbot-agent",
+      "prompt": "社内向けのサポートチャットボットをAWS Blocksで作りたいです。社内ドキュメントを検索して回答してくれて、必要なら『アカウントのロック解除』のような操作も実行できるエージェントにしたいのですが、ロック解除みたいな重要な操作は誰かの承認を経てから実行されるようにしたいです。フロントエンドはReactです。",
+      "expected_output": "KnowledgeBaseとAgent Blockを使ったバックエンドコード。ドキュメント検索用ツールと、承認が必要な操作(needsApproval: true)を持つツールの両方を実装。ReactでuseChatフックを使い、承認待ちの操作をユーザーに提示するUIフローの実装例を含む。ローカル開発時はcannedモデル/TF-IDF検索で動く点への言及がある。",
+      "files": [],
+      "expectations": [
+        "backend.ts instantiates a KnowledgeBase Block for document search",
+        "backend.ts instantiates an Agent Block with a `tools` definition using a schema library (e.g. zod) for parameters",
+        "The tool that performs the sensitive/destructive action (account unlock) has `needsApproval: true` (or an equivalent explicit human-in-the-loop flag)",
+        "The document-search tool does NOT have needsApproval set (read-only tools are not over-gated)",
+        "frontend.tsx uses a chat hook (e.g. useChat) and implements handling for an interrupt/approval event, showing the user something to approve or reject",
+        "README.md or code comments mention that local development does not call a real LLM and instead uses a mock/canned model, so real quality verification needs sandbox/Bedrock"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "review-existing-blocks-app",
+      "prompt": "既存のAWS Blocksプロジェクトがあります。aws-blocks/index.tsに認証(AuthCognito)とファイルアップロード機能(FileBucket)、ユーザーのプロフィール情報を保存するテーブル(DistributedTable)があります。このコードをレビューして、セキュリティや設計の問題点を指摘してほしいです。特に、他人のプロフィールを見れてしまうバグがないか心配です。",
+      "expected_output": "review モードでの観点別チェック(認証チェック漏れ、認可ロジック、論理IDの安定性、Scope構成、型安全性の活用など)。特に他人のプロフィールへのアクセス制御(認可)について具体的な指摘と修正コード例を含む。",
+      "files": ["evals/../../aws-blocks-architect-workspace/iteration-1/review-existing-blocks-app/input-aws-blocks-index.ts"],
+      "expectations": [
+        "review.md explicitly identifies that getProfile(userId) has no authorization check, letting any caller read any other user's profile by passing an arbitrary userId",
+        "backend-fixed.ts changes getProfile so that it derives the profile to fetch from the authenticated user (auth.getCurrentUser) rather than an unchecked client-supplied userId, or otherwise verifies the caller is authorized before returning the profile",
+        "review.md discusses at least one additional dimension beyond the main authorization bug (e.g. logical ID stability, Scope structure, whether Block instantiation happens at module top-level, or type-safety usage)",
+        "The fixed code and review do not introduce Block APIs or import names that are inconsistent with those already used in the input file's style"
+      ]
+    }
+  ]
+}
