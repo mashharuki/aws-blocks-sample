@@ -1,3 +1,6 @@
 {
-	"stackId": "sample-app-759d13"
+  "stackId": "sample-app-759d13",
+  "telemetry": {
+    "projectId": "f98735fd-6ba8-4e4e-8691-9c90224b28b8"
+  }
 }
