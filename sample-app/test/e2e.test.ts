@@ -1,17 +1,17 @@
 /**
- * End-to-end tests — tests the API via direct imports (same typed client the frontend uses).
+ * E2E（エンドツーエンド）テスト — 直接importでAPIをテストする（フロントエンドと同じ型付きクライアントを使用）。
  *
- * Run:  npm run test:e2e
+ * 実行:  npm run test:e2e
  *
- * Structure:
- *   - Setup (starts dev server, imports client) — don't touch
- *   - Auth tests
- *   - CRUD tests
- *   - Conditional write / conflict tests
- *   - Realtime tests
+ * 構成:
+ *   - セットアップ（dev serverを起動し、クライアントをimportする） — 触らない
+ *   - 認証テスト
+ *   - CRUDテスト
+ *   - 条件付き書き込み/競合テスト
+ *   - リアルタイムテスト
  *
- * To add tests: copy any test block, rename, change the assertion. The setup
- * boilerplate handles server lifecycle — you just call api.* methods.
+ * テストを追加するには: 任意のtestブロックをコピーし、名前を変え、アサーションを変更する。
+ * セットアップのボイラープレートがサーバーのライフサイクルを扱うので、api.*メソッドを呼ぶだけでよい。
  */
 
 import assert from "node:assert";
@@ -21,18 +21,18 @@ import { setTimeout } from "node:timers/promises";
 import { installCookieJar, isServerRunning } from "@aws-blocks/blocks/utils";
 import type { api as ApiType, authApi as AuthApiType } from "aws-blocks";
 
-// Install cookie jar before importing the API client — Node's fetch doesn't
-// persist cookies between requests, which breaks authenticated API calls.
+// APIクライアントをimportする前にcookie jarをインストールする — Nodeのfetchは
+// リクエスト間でcookieを保持しないため、これがないと認証付きAPI呼び出しが壊れる。
 installCookieJar();
 
 let server: ChildProcess | null = null;
 let api: typeof ApiType;
 let authApi: typeof AuthApiType;
 
-// ─── Setup (don't touch) ─────────────────────────────────────────────────────
+// ─── セットアップ（触らない） ─────────────────────────────────────────────────────
 
 test.before(async () => {
-	// Use existing dev server if running, otherwise start one
+	// 既存のdev serverが起動していればそれを使い、なければ新規起動する
 	if (!(await isServerRunning())) {
 		server = spawn("npm", ["run", "dev:server"], {
 			cwd: process.cwd(),
@@ -48,7 +48,7 @@ test.before(async () => {
 	api = mod.api;
 	authApi = mod.authApi;
 
-	// Wait for server readiness
+	// サーバーの準備ができるまで待つ
 	for (let i = 0; i < 30; i++) {
 		try {
 			await authApi.getAuthState();
@@ -57,7 +57,7 @@ test.before(async () => {
 			await setTimeout(1000);
 		}
 	}
-	throw new Error("Dev server did not become ready within 30s");
+	throw new Error("Dev serverが30秒以内に準備完了しませんでした");
 });
 
 test.after(() => {
@@ -68,7 +68,7 @@ test.after(() => {
 	}
 });
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
+// ─── 認証 ─────────────────────────────────────────────────────────────────────
 
 test("auth: starts signed out", async () => {
 	const state = await authApi.getAuthState();
@@ -86,7 +86,7 @@ test("auth: sign up creates account and signs in", async () => {
 });
 
 test("auth: unauthenticated access is rejected", async () => {
-	// Sign out first
+	// まずサインアウトする
 	await authApi.setAuthState({ action: "signOut" });
 
 	await assert.rejects(
@@ -97,7 +97,7 @@ test("auth: unauthenticated access is rejected", async () => {
 			err.message.includes("401"),
 	);
 
-	// Sign back in for remaining tests
+	// 残りのテストのために再度サインインする
 	await authApi.setAuthState({
 		action: "signIn",
 		username: "testuser@example.com",
@@ -123,18 +123,18 @@ test("todos: list (only own)", async () => {
 });
 
 test("todos: list sorted by priority (secondary index)", async () => {
-	// Create todos with different priorities
+	// 異なる優先度のTodoを作成する
 	await api.createTodo("Low priority task", 3);
 	await api.createTodo("High priority task", 1);
 
 	const sorted = await api.listTodos("priority");
 	assert.ok(sorted.length >= 2);
-	// Priority 1 (high) should come before priority 3 (low)
+	// priority 1（高）は priority 3（低）より前に来るべき
 	const priorities = sorted.map((t) => t.priority);
 	for (let i = 1; i < priorities.length; i++) {
 		assert.ok(
 			priorities[i] >= priorities[i - 1],
-			"Should be sorted by priority ascending",
+			"優先度の昇順でソートされているはず",
 		);
 	}
 });
@@ -146,7 +146,7 @@ test("todos: list sorted by title (secondary index)", async () => {
 	for (let i = 1; i < titles.length; i++) {
 		assert.ok(
 			titles[i] >= titles[i - 1],
-			"Should be sorted by title ascending",
+			"タイトルの昇順でソートされているはず",
 		);
 	}
 });
@@ -169,32 +169,32 @@ test("todos: delete", async () => {
 	assert.ok(!after.some((t) => t.todoId === target.todoId));
 });
 
-// ─── Conditional writes (optimistic locking) ──────────────────────────────────
+// ─── 条件付き書き込み（楽観的ロック） ──────────────────────────────────
 
 test("todos: concurrent toggle → conflict → retry succeeds", async () => {
-	// Create a fresh todo
+	// 新しいTodoを作成する
 	const todo = await api.createTodo("Conflict test");
 
-	// Simulate a concurrent write by toggling twice "simultaneously"
-	// First toggle succeeds (version 1 → 2)
+	// 2回「同時に」トグルすることで同時書き込みをシミュレートする
+	// 最初のトグルは成功する（version 1 → 2）
 	await api.toggleTodo(todo.todoId);
 
-	// Read current state
+	// 現在の状態を読み込む
 	const current = (await api.listTodos()).find((t) => t.todoId === todo.todoId);
 	assert.strictEqual(current?.version, 2);
 
-	// Toggle again — should succeed because we're reading fresh version
+	// 再度トグルする — 最新のversionを読んでいるので成功するはず
 	await api.toggleTodo(todo.todoId);
 	const final = (await api.listTodos()).find((t) => t.todoId === todo.todoId);
 	assert.strictEqual(final?.version, 3);
-	assert.strictEqual(final?.completed, todo.completed); // toggled twice = back to original
+	assert.strictEqual(final?.completed, todo.completed); // 2回トグル = 元の状態に戻る
 
-	// Cleanup
+	// クリーンアップ
 	await api.deleteTodo(todo.todoId);
 });
 
-// ─── Realtime ─────────────────────────────────────────────────────────────────
-// Note: Realtime subscription tests require the middleware to be loaded,
-// which happens automatically when the dev server regenerates client.js.
-// For a manual test: run `npm run dev`, open two browser tabs, and create
-// a todo in one — it should appear in the other immediately.
+// ─── リアルタイム ─────────────────────────────────────────────────────────────────
+// 注記: リアルタイム購読のテストにはミドルウェアのロードが必要で、
+// これはdev serverがclient.jsを再生成する際に自動的に行われる。
+// 手動でテストするには: `npm run dev` を実行し、2つのブラウザタブを開き、
+// 片方でTodoを作成する — もう片方に即座に表示されるはず。

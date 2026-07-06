@@ -1,8 +1,8 @@
 /**
- * Frontend — src/index.ts
+ * フロントエンド — src/index.ts
  *
- * Real-time todo app. Uses lit-html for declarative rendering with @event binding.
- * Imports the typed backend API via `aws-blocks` (auto-generated proxy).
+ * リアルタイムTodoアプリ。@eventバインディングによる宣言的レンダリングにlit-htmlを使用。
+ * `aws-blocks`（自動生成されるプロキシ）経由で型付きバックエンドAPIをimportする。
  */
 
 import {
@@ -13,8 +13,8 @@ import {
 import { api, authApi } from "aws-blocks";
 import { html, render } from "lit-html";
 
-// ─── Auth ────────────────────────────────────────────────────────────────────
-// Show Account Menu bar that pops open authenticator when Sign In is clicked.
+// ─── 認証 ────────────────────────────────────────────────────────────────────
+// サインインをクリックすると認証画面がポップアップするAccount Menuバーを表示する。
 const menuBarEl = document.getElementById("menu-bar")!;
 menuBarEl.appendChild(AccountMenuBar(authApi));
 
@@ -23,7 +23,7 @@ onAuthChange(authApi, (user) => {
 		user == null ? "" : "none";
 });
 
-// ─── App (shown when authenticated) ─────────────────────────────────────────
+// ─── アプリ本体（認証後に表示） ─────────────────────────────────────────
 document.getElementById("app")!.appendChild(
 	AuthenticatedContent(authApi, (user) => {
 		const container = document.createElement("div");
@@ -44,25 +44,25 @@ document.getElementById("app")!.appendChild(
 		function redraw() {
 			render(
 				html`
-        <h2>Todos</h2>
+        <h2>Todo</h2>
         <div style="margin-bottom:12px;display:flex;gap:4px;align-items:center;flex-wrap:wrap">
-          <input id="new-todo" type="text" placeholder="What needs to be done?" style="flex:1;min-width:200px" @keydown=${(
+          <input id="new-todo" type="text" placeholder="やることを入力してください" style="flex:1;min-width:200px" @keydown=${(
 						e: KeyboardEvent,
 					) => {
 						if (e.key === "Enter") addTodo();
 					}} />
           <select id="new-priority">
-            <option value="1">🔴 High</option>
-            <option value="2" selected>🟡 Medium</option>
-            <option value="3">🟢 Low</option>
+            <option value="1">🔴 高</option>
+            <option value="2" selected>🟡 中</option>
+            <option value="3">🟢 低</option>
           </select>
-          <button @click=${addTodo}>Add</button>
+          <button @click=${addTodo}>追加</button>
         </div>
         <div style="margin-bottom:12px;font-size:0.85em;color:#666">
-          Sort:
-          <button @click=${() => setSort(undefined)} style="font-weight:${!sortBy ? "bold" : "normal"}">Default</button>
-          <button @click=${() => setSort("priority")} style="font-weight:${sortBy === "priority" ? "bold" : "normal"}">Priority</button>
-          <button @click=${() => setSort("title")} style="font-weight:${sortBy === "title" ? "bold" : "normal"}">Title</button>
+          並び替え:
+          <button @click=${() => setSort(undefined)} style="font-weight:${!sortBy ? "bold" : "normal"}">デフォルト</button>
+          <button @click=${() => setSort("priority")} style="font-weight:${sortBy === "priority" ? "bold" : "normal"}">優先度</button>
+          <button @click=${() => setSort("title")} style="font-weight:${sortBy === "title" ? "bold" : "normal"}">タイトル</button>
         </div>
         <ul>
           ${todos.map(
@@ -71,16 +71,16 @@ document.getElementById("app")!.appendChild(
               <input type="checkbox" .checked=${t.completed} @change=${() => toggle(t.todoId)} />
               <span style="flex:1">${t.title}</span>
               <select .value=${String(t.priority)} @change=${(e: Event) => setPriority(t.todoId, parseInt((e.target as HTMLSelectElement).value))}>
-                <option value="1">🔴 High</option>
-                <option value="2">🟡 Medium</option>
-                <option value="3">🟢 Low</option>
+                <option value="1">🔴 高</option>
+                <option value="2">🟡 中</option>
+                <option value="3">🟢 低</option>
               </select>
               <button @click=${() => remove(t.todoId)}>×</button>
             </li>
           `,
 					)}
         </ul>
-        <p style="color:#888;font-size:0.85em">${todos.filter((t) => !t.completed).length} remaining</p>
+        <p style="color:#888;font-size:0.85em">残り${todos.filter((t) => !t.completed).length}件</p>
       `,
 				container,
 			);
@@ -107,7 +107,7 @@ document.getElementById("app")!.appendChild(
 			try {
 				await api.toggleTodo(todoId);
 			} catch {
-				/* conflict — just reload */
+				/* 競合 — 再読み込みするだけ */
 			}
 			await load();
 		}
@@ -116,7 +116,7 @@ document.getElementById("app")!.appendChild(
 			try {
 				await api.updatePriority(todoId, priority);
 			} catch {
-				/* conflict */
+				/* 競合 */
 			}
 			await load();
 		}
@@ -126,14 +126,14 @@ document.getElementById("app")!.appendChild(
 			await load();
 		}
 
-		// Realtime: listen for changes from other tabs/users
+		// リアルタイム: 他のタブ/ユーザーからの変更を購読する
 		(async () => {
 			try {
 				const channel = await api.subscribeTodos();
 				const sub = channel.subscribe(() => load());
 				await sub.established;
 			} catch {
-				/* realtime not available in local dev */
+				/* ローカル開発ではリアルタイムは利用できない */
 			}
 		})();
 

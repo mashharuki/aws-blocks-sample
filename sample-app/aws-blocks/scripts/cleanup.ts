@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execSync } from "node:child_process";
 
-console.log("🧹 Cleaning up Blocks processes...");
+console.log("🧹 Blocksプロセスをクリーンアップ中...");
 
 const ports = [3000, 3001, 3002, 3003];
 for (const port of ports) {
@@ -12,9 +12,9 @@ for (const port of ports) {
 		for (const pid of pids) {
 			try {
 				execSync(`kill ${pid}`);
-				console.log(`✓ Killed process ${pid} on port ${port}`);
+				console.log(`✓ ポート${port}のプロセス${pid}を終了しました`);
 			} catch {}
 		}
 	} catch {}
 }
-console.log("✓ Cleanup complete");
+console.log("✓ クリーンアップ完了");

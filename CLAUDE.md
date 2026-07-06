@@ -1,73 +1,73 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+このファイルは、このリポジトリでコードを扱う際に Claude Code (claude.ai/code) へガイダンスを提供するものです。
 
-## Repository purpose
+## リポジトリの目的
 
-This is a learning/reference repo for **AWS Blocks** (`@aws-blocks/blocks`), AWS's "Infrastructure from Code" TypeScript framework. The actual application lives in `sample-app/` — a real-time todo app generated from `npm create @aws-blocks/blocks-app@latest` and then extended. The repo root also carries `.claude/` tooling: a custom skill (`.claude/skills/aws-blocks-architect`) that encodes AWS Blocks design/implementation/review/testing/deployment knowledge, and a project rule (`.claude/rules/proactive-subagents-and-skills.md`) requiring skills/subagents to be used proactively and announced ("using [skill] to [purpose]") before acting.
+これは **AWS Blocks**（`@aws-blocks/blocks`、AWS の "Infrastructure from Code" TypeScript フレームワーク）を学習・参照するためのリポジトリです。実際のアプリケーションは `sample-app/` にあります — `npm create @aws-blocks/blocks-app@latest` で生成し、その後拡張したリアルタイム Todo アプリです。リポジトリのルートには `.claude/` 配下のツールも含まれています。カスタムスキル（`.claude/skills/aws-blocks-architect`、AWS Blocks の設計・実装・レビュー・テスト・デプロイの知識をまとめたもの）と、プロジェクトルール（`.claude/rules/proactive-subagents-and-skills.md`、行動前にスキル/サブエージェントを積極的に使い、宣言する（"using [skill] to [purpose]"）ことを求めるもの）です。
 
-All application work happens inside `sample-app/` — `cd sample-app` before running any command below.
+アプリケーション関連の作業はすべて `sample-app/` の中で行います — 以下のコマンドを実行する前に `cd sample-app` してください。
 
-## Commands (run from `sample-app/`)
+## コマンド（`sample-app/` から実行）
 
 ```bash
-npm run dev              # Local dev server + frontend, mocked storage — no AWS account needed
-npm run test:e2e         # Runs test/e2e.test.ts (Node's built-in test runner via tsx); auto-starts a dev server if one isn't already running
+npm run dev              # ローカル開発サーバー + フロントエンド、ストレージはモック — AWSアカウント不要
+npm run test:e2e         # test/e2e.test.ts を実行（tsx経由のNode組み込みテストランナー）。dev serverが起動していなければ自動起動
 npm run typecheck        # tsc --noEmit
-npm run check            # bunx biome check --write .  (lint + format + organize imports)
+npm run check            # bunx biome check --write .  （lint + format + import整理）
 npm run format           # bunx biome format --write .
 npm run build            # tsc && vite build -> dist/
-npm run sandbox          # Deploy backend to a real, per-developer AWS sandbox stack; serves frontend locally against it
-npm run sandbox:destroy  # Tear down the sandbox stack
-npm run sandbox:console  # Open the sandbox stack's resource console
-npm run deploy           # Full production deploy (backend + CloudFront/S3 Hosting)
-npm run destroy          # Tear down the production stack
-npm run cleanup          # Kill stray dev-server processes on ports 3000-3003
-npm run spec             # blocks-generate-spec — regenerates aws-blocks/blocks.spec.json
+npm run sandbox          # 開発者ごとの実AWSサンドボックススタックへバックエンドをデプロイし、フロントエンドはローカルでそれに対して提供
+npm run sandbox:destroy  # サンドボックススタックを削除
+npm run sandbox:console  # サンドボックススタックのリソースコンソールを開く
+npm run deploy           # 本番フルデプロイ（バックエンド + CloudFront/S3 Hosting）
+npm run destroy          # 本番スタックを削除
+npm run cleanup          # ポート3000-3003に残った dev-server プロセスを終了
+npm run spec             # blocks-generate-spec — aws-blocks/blocks.spec.json を再生成
 ```
 
-Dependencies are managed with `bun` (`bun.lock` is the lockfile) even though the docs above are phrased as `npm run ...` — `bun run <script>` works identically since it reads the same `package.json` scripts.
+依存関係は `bun`（`bun.lock` がロックファイル）で管理されています。上記のコマンドは `npm run ...` という表記ですが、`bun run <script>` も同じ `package.json` の scripts を読むため同様に動作します。
 
-**Running a single e2e test**: `test/e2e.test.ts` uses `node:test`; there's no per-test CLI filter wired up in `package.json`, so either use `node --test --test-name-pattern="<name>"` directly against the compiled/tsx-run file, or temporarily comment out other `test(...)` blocks. Tests share one dev-server instance and run in file order — the CRUD/conflict tests depend on state left by earlier tests (e.g. "todos: delete" assumes a prior test created todos), so don't run them out of order.
+**単一の e2e テストを実行する**: `test/e2e.test.ts` は `node:test` を使用しており、`package.json` にテスト単位のCLIフィルタは用意されていません。そのため、コンパイル済み（またはtsx実行）のファイルに対して `node --test --test-name-pattern="<name>"` を直接使うか、他の `test(...)` ブロックを一時的にコメントアウトしてください。テストは1つの dev-server インスタンスを共有し、ファイル順に実行されます — CRUD/競合テストは以前のテストが残した状態に依存しています（例えば「todos: delete」は事前のテストが todo を作成していることを前提とする）。順序を変えて実行しないでください。
 
-For faster iteration per `sample-app/AGENTS.md`: run `npm run dev &` once in the background, then re-run `npm run test:e2e` repeatedly — it detects and reuses the already-running server instead of spawning a new one each time.
+`sample-app/AGENTS.md` に従った高速なイテレーションのために: バックグラウンドで `npm run dev &` を一度実行し、`npm run test:e2e` を繰り返し実行してください — 既に起動しているサーバーを検出して再利用するため、毎回新しいサーバーを起動しません。
 
-## Architecture
+## アーキテクチャ
 
-### The conditional-exports trick
+### conditional-exports（条件付きエクスポート）のトリック
 
-Every Building Block (`DistributedTable`, `AuthBasic`, `Realtime`, etc.) is instantiated once in `aws-blocks/index.ts` and the same import resolves to a different implementation depending on where the code runs:
+すべての Building Block（`DistributedTable`、`AuthBasic`、`Realtime` など）は `aws-blocks/index.ts` で一度だけインスタンス化され、同じ import が実行される場所によって異なる実装に解決されます。
 
-- **Local dev** (`npm run dev`) → in-memory/file-backed mocks (state under `.bb-data/`, gitignored)
-- **CDK synth** (`npm run sandbox` / `deploy`) → real CDK constructs → CloudFormation
-- **Lambda runtime** (deployed) → AWS SDK calls against the real resources
+- **ローカル開発**（`npm run dev`）→ インメモリ/ファイルベースのモック（状態は `.bb-data/` 配下、gitignore対象）
+- **CDK synth**（`npm run sandbox` / `deploy`）→ 実際のCDKコンストラクト → CloudFormation
+- **Lambda ランタイム**（デプロイ後）→ 実リソースに対するAWS SDK呼び出し
 
-The frontend never talks to a REST endpoint directly. `aws-blocks`'s own `package.json` exports map (`aws-blocks/package.json`) resolves `import ... from "aws-blocks"` to `client.js` (an auto-generated JSON-RPC proxy, gitignored, regenerated by the dev server / build) in browser/`react-server` contexts, and to `index.ts` directly (giving full type inference) elsewhere. **Do not hand-write fetch/curl calls against the API** — always `import { api, authApi } from "aws-blocks"` and call methods directly; this is true in the frontend (`src/index.ts`) and in tests (`test/e2e.test.ts`).
+フロントエンドは直接RESTエンドポイントと通信することはありません。`aws-blocks` 自身の `package.json` の exports map（`aws-blocks/package.json`）は、ブラウザ/`react-server` コンテキストでは `import ... from "aws-blocks"` を `client.js`（自動生成されるJSON-RPCプロキシ、gitignore対象、dev server/build時に再生成）に解決し、それ以外の場所では `index.ts` に直接解決します（完全な型推論が得られる）。**APIに対して手書きのfetch/curl呼び出しをしないでください** — 常に `import { api, authApi } from "aws-blocks"` を使い、メソッドを直接呼び出してください。これはフロントエンド（`src/index.ts`）でもテスト（`test/e2e.test.ts`）でも同様です。
 
-### Three backend entry points
+### 3つのバックエンドエントリポイント
 
-- `aws-blocks/index.ts` — the actual backend: `Scope`, Block instantiation (`AuthBasic`, `DistributedTable`, `Realtime`), and the `ApiNamespace` exposing callable methods. This is what you edit for new features.
-- `aws-blocks/index.cdk.ts` — CDK app entry point (`npx tsx -C cdk aws-blocks/index.cdk.ts`, wired via `cdk.json`). Wraps `index.ts` in a `BlocksStack`, adds sandbox-only removal-policy overrides (`RemovalPolicies`, `SandboxDisableDeletionProtection`) and prod-only static `Hosting`. Edit this file for stack-level CDK customization (custom resources, deletion policies, hosting config) — not `index.ts`.
-- `aws-blocks/index.handler.ts` — the Lambda entry point (`createLambdaHandler(() => import("./index.js"))`). Rarely needs editing.
+- `aws-blocks/index.ts` — 実際のバックエンド: `Scope`、Blockのインスタンス化（`AuthBasic`、`DistributedTable`、`Realtime`）、呼び出し可能なメソッドを公開する `ApiNamespace`。新機能を追加する際に編集するのはここです。
+- `aws-blocks/index.cdk.ts` — CDKアプリのエントリポイント（`npx tsx -C cdk aws-blocks/index.cdk.ts`、`cdk.json` 経由で配線）。`index.ts` を `BlocksStack` でラップし、サンドボックス限定の削除ポリシー上書き（`RemovalPolicies`、`SandboxDisableDeletionProtection`）と本番限定の静的 `Hosting` を追加します。スタックレベルのCDKカスタマイズ（カスタムリソース、削除ポリシー、ホスティング設定）はこのファイルを編集してください — `index.ts` ではありません。
+- `aws-blocks/index.handler.ts` — Lambdaのエントリポイント（`createLambdaHandler(() => import("./index.js"))`）。編集する必要はほとんどありません。
 
-### Data model conventions (see `aws-blocks/index.ts`)
+### データモデルの規約（`aws-blocks/index.ts` を参照）
 
-- Zod schemas double as runtime validation, TypeScript types, and (for `DistributedTable`) the DynamoDB table shape — one source of truth.
-- Per-user isolation: `userId` (from `auth.requireAuth(context)`, never a client-supplied argument) is always the partition key.
-- Secondary indexes are declared alongside the table (`indexes: { byPriority: {...} }`) and queried via `table.query({ index, where: {...} })`, which returns an async iterable — collect with `Array.fromAsync(...)`.
-- Optimistic locking: a `version` field incremented on every write, enforced via `table.put(data, { ifFieldEquals: { version } })`. A failed check throws — callers should re-read and retry (see `toggleTodo`/`updatePriority` and their frontend callers, which just re-`load()` on catch).
-- Realtime updates: `Realtime.namespace(zodSchema)` defines a typed channel; backend calls `rt.publish(name, key, payload)` after each mutation, frontend calls `api.subscribeTodos()` → `channel.subscribe(callback)`.
+- Zodスキーマは、ランタイムバリデーション・TypeScriptの型・（`DistributedTable` の場合は）DynamoDBテーブル形状を兼ねる、単一の情報源です。
+- ユーザーごとの分離: `userId`（`auth.requireAuth(context)` から取得し、クライアントから渡される引数では決してない）が常にパーティションキーです。
+- セカンダリインデックスはテーブルと一緒に宣言され（`indexes: { byPriority: {...} }`）、`table.query({ index, where: {...} })` で問い合わせます。これは非同期イテラブルを返すので `Array.fromAsync(...)` で収集します。
+- 楽観的ロック: 書き込みのたびにインクリメントされる `version` フィールドを `table.put(data, { ifFieldEquals: { version } })` で強制します。チェックに失敗すると例外がスローされます — 呼び出し側は再読み込みしてリトライすべきです（`toggleTodo`/`updatePriority` とそのフロントエンド呼び出し側を参照。catch時にただ再度 `load()` しています）。
+- リアルタイム更新: `Realtime.namespace(zodSchema)` が型付きチャンネルを定義し、バックエンドは各変更後に `rt.publish(name, key, payload)` を呼び、フロントエンドは `api.subscribeTodos()` → `channel.subscribe(callback)` を呼びます。
 
-### Stack naming and multi-developer sandboxes
+### スタック命名と複数開発者向けサンドボックス
 
-`stackId` in `.blocks/config.json` (generated at scaffold time) is the base name for CloudFormation stacks. Production deploys as `<stackId>-prod`; `npm run sandbox` deploys as `<stackId>-<username>-<random>`, with the per-machine sandbox identifier cached in `.blocks-sandbox/sandbox-id.txt` (gitignored) so multiple developers can share one AWS account without colliding. To rename the stack, edit `stackId` directly.
+`.blocks/config.json`（スキャフォールド時に生成）の `stackId` はCloudFormationスタックのベース名です。本番デプロイは `<stackId>-prod` として、`npm run sandbox` は `<stackId>-<username>-<random>` としてデプロイされ、マシンごとのサンドボックス識別子は `.blocks-sandbox/sandbox-id.txt`（gitignore対象）にキャッシュされます。これにより複数の開発者が1つのAWSアカウントを衝突なく共有できます。スタック名を変更するには `stackId` を直接編集してください。
 
-### Rules for agents editing this app (from `sample-app/AGENTS.md`)
+### このアプリを編集するエージェントのためのルール（`sample-app/AGENTS.md` より）
 
-- Never use local files, in-memory arrays, or a local database for persistence — always go through a Building Block, which mocks locally and deploys automatically.
-- Before using an unfamiliar Block, check its docs at `node_modules/@aws-blocks/blocks/docs/<package-name>.md` (catalog/decision-tree at `node_modules/@aws-blocks/blocks/docs/index.md`, full guide at `node_modules/@aws-blocks/blocks/README.md`).
-- `npm run sandbox` / `npm run deploy` / `npm run sandbox:destroy` require real AWS credentials.
+- 永続化のためにローカルファイル・インメモリ配列・ローカルデータベースを絶対に使わないでください — 常にBuilding Blockを経由してください。ローカルではモックされ、自動的にデプロイされます。
+- 見慣れないBlockを使う前に、`node_modules/@aws-blocks/blocks/docs/<package-name>.md` のドキュメントを確認してください（カタログ/決定木は `node_modules/@aws-blocks/blocks/docs/index.md`、完全ガイドは `node_modules/@aws-blocks/blocks/README.md`）。
+- `npm run sandbox` / `npm run deploy` / `npm run sandbox:destroy` には実際のAWS認証情報が必要です。
 
-### Linting/formatting
+### Lint/フォーマット
 
-Biome (`biome.json`): tab indentation, double quotes, `organizeImports` on save. Run via `npm run check` (write mode) — there is no separate CI-only check script.
+Biome（`biome.json`）: タブインデント、ダブルクォート、保存時に `organizeImports`。`npm run check`（書き込みモード）経由で実行 — 別途CI専用のチェックスクリプトはありません。

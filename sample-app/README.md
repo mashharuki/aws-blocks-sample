@@ -1,60 +1,60 @@
 # AWS Blocks App
 
-Real-time todo app with authentication, per-user data isolation, and live sync across tabs.
+認証、ユーザーごとのデータ分離、タブ間のライブ同期を備えたリアルタイムTodoアプリ。
 
-## Getting Started
+## はじめに
 
 ```bash
-npm run dev          # Start local dev server (mocks, no AWS needed)
-npm run test:e2e     # Run API tests
-npm run sandbox      # Deploy to AWS sandbox
+npm run dev          # ローカルdevサーバーを起動（モック、AWS不要）
+npm run test:e2e     # APIテストを実行
+npm run sandbox      # AWSサンドボックスへデプロイ
 ```
 
-Open http://localhost:3000 after `npm run dev`.
+`npm run dev` の後、http://localhost:3000 を開く。
 
-## Project Structure
+## プロジェクト構成
 
-| Path | Purpose |
+| パス | 用途 |
 |------|---------|
-| `aws-blocks/index.ts` | Backend: auth, data model, API, real-time channels |
-| `src/index.ts` | Frontend: todo UI with live updates |
-| `test/e2e.test.ts` | Tests: auth, CRUD, conflicts, real-time |
-| `index.html` | HTML shell |
+| `aws-blocks/index.ts` | バックエンド: 認証、データモデル、API、リアルタイムチャンネル |
+| `src/index.ts` | フロントエンド: ライブ更新付きTodo UI |
+| `test/e2e.test.ts` | テスト: 認証、CRUD、競合、リアルタイム |
+| `index.html` | HTMLシェル |
 
-## What's Included
+## 含まれるもの
 
-- **AuthBasic** — sign up / sign in / sign out with JWT sessions
-- **DistributedTable** — todos stored in DynamoDB with Zod schema validation
-- **Optimistic locking** — `version` field + `ifFieldEquals` prevents lost updates
-- **Realtime** — todo changes broadcast to all connected tabs via WebSocket
+- **AuthBasic** — JWTセッションによるサインアップ/サインイン/サインアウト
+- **DistributedTable** — Zodスキーマによる検証付きでDynamoDBに保存されるTodo
+- **楽観的ロック** — `version` フィールド + `ifFieldEquals` で更新のロストを防止
+- **Realtime** — Todoの変更をWebSocket経由で接続中の全タブへブロードキャスト
 
-## Commands
+## コマンド
 
-| Command | Description |
+| コマンド | 説明 |
 |---------|-------------|
-| `npm run dev` | Local dev with mock storage |
-| `npm run test:e2e` | Test API via direct imports |
-| `npm run typecheck` | TypeScript type checking |
-| `npm run sandbox` | Deploy backend to AWS, serve frontend locally |
-| `npm run deploy` | Full production deploy |
-| `npm run sandbox:destroy` | Tear down sandbox resources |
+| `npm run dev` | モックストレージでのローカル開発 |
+| `npm run test:e2e` | 直接importでAPIをテスト |
+| `npm run typecheck` | TypeScriptの型チェック |
+| `npm run sandbox` | バックエンドをAWSへデプロイし、フロントエンドはローカルで提供 |
+| `npm run deploy` | 本番フルデプロイ |
+| `npm run sandbox:destroy` | サンドボックスリソースを削除 |
 
-## Building on this template
+## このテンプレートを土台にする
 
-The test file (`test/e2e.test.ts`) is structured in sections — Auth, CRUD, Conflicts, Realtime. Add your own tests by copying a `test(...)` block and changing the assertion. The API methods in `aws-blocks/index.ts` follow a consistent pattern: authenticate → do work → broadcast.
+テストファイル（`test/e2e.test.ts`）はセクションごとに構成されている — 認証、CRUD、競合、リアルタイム。`test(...)` ブロックをコピーしてアサーションを変更することで、独自のテストを追加できる。`aws-blocks/index.ts` のAPIメソッドは一貫したパターンに従う: 認証する → 処理する → ブロードキャストする。
 
-To replace the todo domain with your own: update the Zod schema, rename the API methods, and adjust the tests. The auth and real-time wiring stays the same.
+Todoドメインを独自のものに置き換えるには: Zodスキーマを更新し、APIメソッドをリネームし、テストを調整する。認証とリアルタイムの配線はそのまま使える。
 
-## Stack naming
+## スタック命名
 
-Your CloudFormation stack names are derived from the `stackId` in `.blocks/config.json` — generated at scaffold time from your project name plus a random suffix (e.g., `my-app-a3x9kf`). Production deploys as `<stackId>-prod` and sandbox as `<stackId>-<username>-<random>`, where the sandbox identifier is per-machine and stored in `.blocks-sandbox/sandbox-id.txt` (gitignored). This lets multiple developers share a testing account without colliding.
+CloudFormationスタック名は `.blocks/config.json` の `stackId` から導出される — スキャフォールド時にプロジェクト名とランダムなサフィックスから生成される（例: `my-app-a3x9kf`）。本番デプロイは `<stackId>-prod` として、サンドボックスは `<stackId>-<username>-<random>` としてデプロイされ、サンドボックス識別子はマシンごとに `.blocks-sandbox/sandbox-id.txt`（gitignore対象）に保存される。これにより複数の開発者がテスト用アカウントを衝突なく共有できる。
 
-To change the stack name, edit `stackId` in `.blocks/config.json`. For dynamic naming logic, modify `aws-blocks/index.cdk.ts` directly.
+スタック名を変更するには `.blocks/config.json` の `stackId` を編集する。動的な命名ロジックが必要な場合は `aws-blocks/index.cdk.ts` を直接変更する。
 
-## For Agents
+## エージェント向け
 
-Full Building Block documentation: `node_modules/@aws-blocks/blocks/README.md`
+Building Blockの完全なドキュメント: `node_modules/@aws-blocks/blocks/README.md`
 
-**Do not use local files or in-memory storage** — use Building Blocks for all data persistence and cloud abstractions (they mock locally and deploy to AWS automatically).
+**ローカルファイルやインメモリストレージを使わないこと** — すべてのデータ永続化とクラウド抽象化にBuilding Blockを使う（ローカルでは自動的にモックされ、AWSへも自動的にデプロイされる）。
 
-Start in `aws-blocks/index.ts` (backend) and `src/index.ts` (frontend). Test via `npm run test:e2e`. The API transport (JSON-RPC) is auto-generated and intentionally invisible — do not curl endpoints directly. Testing is best done through the e2e tests which use the same typed client as the frontend.
+`aws-blocks/index.ts`（バックエンド）と `src/index.ts`（フロントエンド）から始める。`npm run test:e2e` でテストする。APIトランスポート（JSON-RPC）は自動生成され、意図的に不可視になっている — エンドポイントに直接curlしない。テストはフロントエンドと同じ型付きクライアントを使うe2eテストを通じて行うのが最善。
