@@ -7,7 +7,13 @@
 ```bash
 npm run dev          # ローカルdevサーバーを起動（モック、AWS不要）
 npm run test:e2e     # APIテストを実行
-npm run sandbox      # AWSサンドボックスへデプロイ
+npm run sandbox      # AWSサンドボックスへデプロイ(事前にAWS認証が必要)
+npm run deploy       # フルデプロイ
+
+# フルデプロイの削除
+npm run destroy
+# sandboxの削除
+npm run sandbox:destroy  
 ```
 
 `npm run dev` の後、http://localhost:3000 を開く。
