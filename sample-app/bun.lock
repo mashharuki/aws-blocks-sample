@@ -5,6 +5,7 @@
     "": {
       "name": "sample-app",
       "dependencies": {
+        "@aws-blocks/bb-realtime": "^0.1.2",
         "@aws-blocks/blocks": "*",
         "lit-html": "^3.2.0",
         "zod": "^4.3.0",
